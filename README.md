@@ -79,6 +79,41 @@ docker分为社区版(CE)和企业版(EE)，企业版中包含一些收费项目
 
 #### MAC
 
+##### Docker ToolBox（推荐）
+
+> + 推荐`Docker ToolBox`原因参见[Mac中的Docker](#Mac中的Docker) 
+> + 本次是基于`Parallels Desktop`安装，也可以基于`Docker TollBox`提供的`Oracle VM VirtualBox`或其他虚拟机安装
+> + `docker-machine-parallels`是用于`parallels desktop`的`docker`驱动，使用说明参见
+>   + [github](https://github.com/Parallels/docker-machine-parallels) 
+>   + [Docker On Parallels Tutorial](https://zitseng.com/archives/10861) 
+
++ 下载[Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_mac/)，安装到`安装类型`时，点击`自定义`，按下图安装
+
+  <img src="assets/image-20190307153830247-1944310.png" width="400px"/> 
+
++ 安装用于`parallels desktop`的`docker`驱动
+
+  ```shell
+  $ brew install docker-machine-parallels
+  ```
+
++ 使用`docker-machine`创建`docker`服务
+
+  ```shell
+  $ docker-machine create --driver=parallels default
+  ```
+
++ 将`docker`客户端连接到该服务
+
+  ```shell
+  # 查看环境参数
+  $ docker-machine env default
+  # 根据环境参数连接docker服务
+  $ eval $(docker-machine env default)
+  ```
+
+##### Docker Desktop
+
 使用homebrew安装
 
 ```shell
@@ -86,6 +121,8 @@ $ brew cask install docker
 ```
 
 #### Centos
+
+##### 有网络
 
 按顺序执行如下命令
 
@@ -121,6 +158,12 @@ $ sudo systemctl start docker
 $ sudo usermod -aG docker $USER
 ```
 
+##### 无网络
+
++ centos6
+
+  参见[CentOS6 完全离线安装Docker](https://www.jianshu.com/p/beea3ae215e6) 
+
 ### 测试
 
 接下来执行如下命令测试是否安装成功
@@ -150,17 +193,6 @@ docker: Error response from daemon: Get https://registry-1.docker.io/v2/: net/ht
   $ sudo service docker restart
   ```
 
-+ mac
-
-  > 参见[docker 出现 Error response from daemon](https://blog.csdn.net/zhengdesheng19930211/article/details/78432646/) 
-
-  点击状态栏的docker图标 → Preferences → Daemon
-
-  在`insecure-registries`一栏中填入`http://f2d6cb40.m.daocloud.io`，**勾选再取消**`Experimental`，重启；如下图：
-
-  <img src="assets/image-20190219212433876-0582673.png" width="400px" /> 
-
-
 然后重新进行测试就没问题了
 
 ### 启动、停止
@@ -172,10 +204,6 @@ docker: Error response from daemon: Get https://registry-1.docker.io/v2/: net/ht
   # 或
   $ sudo service docker start
   ```
-
-+ Mac
-
-  界面中操作
 
 ## image文件
 
@@ -728,6 +756,25 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
   <img src="assets/image-20190228142655265-1335215.png" width="500px" />  
 
+### 导入导出image
+
++ 导出
+
+  ```shell
+  $ docker save -o fdfs.image delron/fastdfs
+  ```
+
+  + 参数说明
+    + `fdfs.image`：输出文件名
+    + `delron/fastdfs`要导出的镜像名称
+  + 执行成功后，在当前目录下会生成`fdfs.image`文件，该文件即可复制到其他机器进行导入
+
++ 导入
+
+  ```shell
+  $ docker load -i fdfs.image
+  ```
+
 ## 容器
 
 ### 容器创建、启动、停止
@@ -907,7 +954,7 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
 + 容器内网络环境与主机共享，直接当做本机使用即可
 
-+ MAC系统中该模式有问题，待研究
++ MAC系统中无法使用该模式
 
 + 例
 
@@ -1064,6 +1111,9 @@ $ docker run -d --link wordpressdb:mysql wp
     |         |                                        |      |
     |         |                                        |      |
 
+## docker-machine
+
+
 
 ## 使用记录
 
@@ -1090,6 +1140,28 @@ $ docker run -d --link wordpressdb:mysql wp
   ```shell
   $ service docker restart
   ```
+
+### Mac中的Docker
+
+> 参考资料：[Docker for Mac 的网络问题](https://windard.com/blog/2018/05/01/Docker-For-Mac) 
+
++ `Docker`是`C/S`模型
+
++ 在`Linux`中，`docker`的`server`端(也就是`docker daemon`进程)是直接运行在`linux`系统上的，所以`docker`的[5种网络模式](#网络模式)都是可以正常工作的
+
++ 在`Mac`或`Windows`中，`docekr`的演变经历了如下演变过程
+
+  + 一开始`Mac`上的`Docker`使用`Docker-Toolbox`安装，使用其中集成的`docker-machine`工具在`Mac`上创建1个`linux`虚拟机，将`docker`的`server`端运行在虚拟机中
+
+    但是由于中间隔着一层虚拟机，主机与容器无法共享网络，所以`host`网络模式不可用
+
+  + 随后使用`Docker Desktop`代替了`DockerTollBox`；`Docker Desktop`使用`Mac`自带的虚拟化技术`HyperKit`代替了原来的虚拟机。但是`Docker Desktop`带来了一些新问题：
+
+    + 依旧无法使用`host`网络模式
+    + 主机无法`ping`通`docker`容器
+    + `HyperKit`内存占用率极高，参见[Docker Engine Memory leak #178](https://github.com/docker/for-mac/issues/178#issuecomment-238509543) 
+
+    > 综上，建议使用`Docker ToolBox`安装
 
 ## 采坑记录
 
