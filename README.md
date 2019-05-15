@@ -226,8 +226,9 @@ docker: Error response from daemon: Get https://registry-1.docker.io/v2/: net/ht
 
   如：
 
-  + 国内镜像：http://f2d6cb40.m.daocloud.io
-  + 官方镜像：https://registry.docker-cn.com
+  + 国内镜像：
+    + http://f2d6cb40.m.daocloud.io
+    + http://141e5461.m.daocloud.io
 
 ### 使用image文件
 
@@ -316,7 +317,9 @@ imageNamet由3部分组成：
 
 ##### Dockerfile
 
-> 资料参见[Dockerfile命令详解（超全版本）](https://www.cnblogs.com/dazhoushuoceshi/p/7066041.html) 
+> 资料参见[Dockerfile命令详解（超全版本）](https://www.cnblogs.com/dazhoushuoceshi/p/7066041.html)
+>
+> +  文中对`同时指定cmd和entrypoint`部分的描述有误，`top -b`可以得到执行
 
 制作`image`镜像文件需要的配置文件，常用命令如下
 
@@ -452,8 +455,8 @@ imageNamet由3部分组成：
 
     ```shell
     RUN <command>								# shell方式执行，最终执行命令为
-    											#	/bin/sh -c command 
-    RUN ["executable", "param1", "param2"]		# 执行命令各部分使用数组表示
+    														#	/bin/sh -c command 
+    RUN ["executable", "param1", "param2"]		# exec方式，执行命令各部分使用数组表示
     ```
 
   + 功能
@@ -462,7 +465,8 @@ imageNamet由3部分组成：
 
   + 说明
 
-    该命令就是在构建镜像的时候，基于基础镜像执行了`docker run`命令，并且每个`RUN`都会启动1个新的容器
+    + `shell`方式中可以使用环境变量，如`$JAVA_HOME`，`exec`方式不可以，但是在没有安装`shell`的镜像中，`exec`方式命令可以正常执行；两种方式都可以使用
+    + 该命令就是在构建镜像的时候，基于基础镜像执行了`docker run`命令，并且每个`RUN`都会启动1个新的容器
 
   + 注意
 
@@ -494,13 +498,13 @@ imageNamet由3部分组成：
   + 语法
 
     ```shell
-    VOLUME ["/data","/date"]
+    VOLUME ["/data","/date"]				// 这是2个挂载点
     VOLUME /data /date
     ```
 
   + 功能
 
-    将本机指定的目录挂在到容器中，一般用于持久化
+    将容器中的目录挂在到本机上1个自动生成的目录，一般用于持久化
 
 + EXPOSE
 
@@ -519,10 +523,10 @@ imageNamet由3部分组成：
   + 语法
 
     ```shell
-    CMD ["executable","param1","param2"]		# 1 执行命令各部分使用数组表示
-    CMD ["param1","param2"]						# 2 仅指定参数，用于与 ENTRYPOINT 配合使用
-    CMD command param1 param2					# 3 shell方式执行，最终执行命令为
-    											#	/bin/sh -c command param1 param2
+    CMD ["executable","param1","param2"]		# 1 exec格式：执行命令各部分使用数组表示
+    CMD ["param1","param2"]									# 2 exec格式：仅指定参数，用于与 ENTRYPOINT 配合使用
+    CMD command param1 param2								# 3 shell方式执行，最终执行命令为
+    																				#		/bin/sh -c command param1 param2
     ```
 
   + 功能
@@ -532,8 +536,8 @@ imageNamet由3部分组成：
   + 注意
 
     + 必须使用双引号，不能使用单引号
-    + 一般只使用`CMD`，不使用`ENTRYPOINT`
     + 只能指定1个CMD命令
+    + 推荐使用`exec`格式
 
 + ENTRYPOINT
 
@@ -550,13 +554,25 @@ imageNamet由3部分组成：
 
     - `ENTRYPOINT`不会被运行的command覆盖，而`CMD`会被覆盖
     - `ENTRYPOINT`后面必须是完整的命令
-    -  同时写了`ENTRYPOINT`和`CMD`时
-      - 如果`CMD`指令不是一个完整的可执行命令，那么`CMD`指定的内容将会作为`ENTRYPOINT`的参数
-      - 如果`CMD`是一个完整的指令，谁在最后谁生效
+    - 同时写了`ENTRYPOINT`和`CMD`时，那么`CMD`指定的内容将会作为`ENTRYPOINT`的参数
+      - 比如下面的 Dockerfile 片段：
+
+        ```
+        ENTRYPOINT ["/bin/echo", "Hello"]  
+        CMD ["world"]
+        ```
+
+        当容器通过`docker run -it [image]` 启动时，输出为：
+
+        `Hello world`
+
+        而如果通过 `docker run -it [image] CloudMan` 启动，则输出为：
+
+        `Hello CloudMan`
 
   + 注意
 
-    一般只使用`CMD`命令即可
+    推荐使用`exec`格式
 
 + LABEL
 
@@ -686,6 +702,228 @@ docker镜像仓库为[Docker Hub](https://hub.docker.com)，基础镜像都从�
 
   ```shell
   FROM java:8-jre
+  ```
+
+##### 例子
+
+###### mysql
+
+> 参见[docker 生成mysql镜像启动时自动执行sql](<https://www.jianshu.com/p/12fc253fa37d>) 
+>
+> + 如果有1个或多个对执行顺序没有要求的sql脚本，可以直接将脚本拷贝到`/docker-entrypoint-initdb.d`目录下，见`方案1`
+> + 如果有多个对顺序有要求的sql脚本，则需要额外使用shell脚本控制sql脚本执行顺序，将shell脚本拷贝到`/docker-entrypoint-initdb.d`目录下自动执行，sql脚本拷贝到其他目录，由shell脚本调用sql脚本，见`方案2`
+
++ 方案1
+
+  在当前某目录下准备2个文件
+
+  + Dockerfile
+
+    ```dockerfile
+    FROM mysql:5.7
+    MAINTAINER Mshuyan <shuyan434224591@gmail.com>
+    # 指定root用户密码，这样就不同在 docker run 中使用 -e 来指定了
+    ENV MYSQL_ROOT_PASSWORD 123456
+    # entrypoint.sh中自动执行脚本的目录，不可以指定为其他目录
+    ENV AUTO_RUN_DIR /docker-entrypoint-initdb.d
+    # 待执行的sql脚本
+    ENV FILE_1 map_v2.sql
+    # 拷贝sql脚本到自动执行脚本的目录
+    COPY ./$FILE_1 $AUTO_RUN_DIR/
+    ```
+
+  + map_v2.sql
+
+    ```sql
+    CREATE DATABASE IF NOT EXISTS map default charset utf8 COLLATE utf8_general_ci;
+    use map;
+    
+    SET NAMES utf8mb4;
+    SET FOREIGN_KEY_CHECKS = 0;
+    
+    -- ----------------------------
+    -- Table structure for article
+    -- ----------------------------
+    DROP TABLE IF EXISTS `article`;
+    CREATE TABLE `article` (
+    ......
+    ```
+
++ 方案2
+
+  在当前某目录下准备3个文件
+
+  + Dockerfile
+
+    ```dockerfile
+    FROM mysql:5.7
+    MAINTAINER Mshuyan <shuyan434224591@gmail.com>
+    # 指定root用户密码，这样就不同在 docker run 中使用 -e 来指定了
+    ENV MYSQL_ROOT_PASSWORD 123456
+    # 当前dockerfile的工作目录
+    ENV WORK_PATH /usr/local/work
+    # entrypoint.sh中自动执行脚本的目录，不可以指定为其他目录
+    ENV AUTO_RUN_DIR /docker-entrypoint-initdb.d
+    # 2个待执行的sql脚本和1个shell脚本
+    ENV FILE_0 init_database.sql
+    ENV FILE_1 map_v2.sql
+    ENV INSTALL_DB_SHELL install_db.sh
+    # 创建工作目录
+    RUN mkdir -p $WORK_PATH
+    # 拷贝sql脚本到工作目录，这里不可以拷贝到 AUTO_RUN_DIR，否则会重复执行
+    COPY ./$FILE_0 $WORK_PATH/
+    COPY ./$FILE_1 $WORK_PATH/
+    # 拷贝shell脚本到自动执行目录下
+    COPY ./$INSTALL_DB_SHELL $AUTO_RUN_DIR/
+    # 加权限
+    RUN chmod a+x $AUTO_RUN_DIR/$INSTALL_DB_SHELL
+    ```
+
+  + install_db.sh
+
+    ```shell
+    mysql -uroot -p$MYSQL_ROOT_PASSWORD << EOF
+    source $WORK_PATH/$FILE_0;
+    source $WORK_PATH/$FILE_1;
+    ```
+
+  + init_database.sql
+
+    ```sql
+    CREATE DATABASE IF NOT EXISTS map default charset utf8 COLLATE utf8_general_ci;
+    ```
+
+  + map_v2.sql
+
+    ```sql
+    use map;
+    
+    SET NAMES utf8mb4;
+    SET FOREIGN_KEY_CHECKS = 0;
+    
+    -- ----------------------------
+    -- Table structure for article
+    -- ----------------------------
+    DROP TABLE IF EXISTS `article`;
+    CREATE TABLE `article` (
+    ......
+    ```
+
++ 启动命令
+
+  ```shell
+  $ docker run -d -v /home/shuyan/docker/mysql/data:/var/lib/mysql --name mysql msql
+  ```
+
+###### jar包
+
++ Dockerfile
+
+  ```dockerfile
+  FROM java:8-jre
+  COPY reception-1.0.0-REALEASE.jar reception-1.0.0-REALEASE.jar
+  ENV BOOT_PARAM 	--spring.datasource.url=jdbc:mysql://mysql:3306/map?useUnicode=true&characterEncoding=utf-8&useSSL=false \
+  		--spring.datasource.username=root \
+  		--spring.datasource.password=123456 \
+  		--fdfs.tracker-list[0]=tracker:22122 \
+  		--sys.fdfs.group-name=group1 \
+  		--spring.profiles.active=prod
+  EXPOSE 8080
+  ENTRYPOINT ["sh","-c","java -jar reception-1.0.0-REALEASE.jar $BOOT_PARAM"]
+  ```
+
++ 启动命令
+
+  ```shell
+  $ docker run -d --link mysql --link tracker --name cxfwlm_recep cxfwlm_recep
+  ```
+
+###### nginx+前端代码
+
++ nginx配置文件
+
+  > 该文件中的域名会在启动容器时在`entrypoint.sh`中使用指定的参数进行替换
+
+  ```nginx
+  proxy_set_header Host $host;
+  server {
+          listen 80;
+          server_name     img.cxfwlm.org.cn;
+          location /{
+                  proxy_pass http://storage:8888;
+          }
+  }
+  server {
+  	listen 	 	80;
+          server_name 	www.cxfwlm.org.cn;
+          root   		/opt/cxfwlm/reception/dist/;
+          index  		index.html index.htm;
+  	add_header X-Frame-Options SAMEORIGIN;
+          location / {
+          	index  	index.html;
+                  try_files $uri $uri/ /index.html;
+          }
+  }
+  server {
+          listen          80;
+          server_name     admin.cxfwlm.org.cn;
+          root            /opt/cxfwlm/backend/dist/;
+          index           index.html index.htm;
+          add_header X-Frame-Options SAMEORIGIN;
+  	location / {
+                  index   index.html;
+                  try_files $uri $uri/ /index.html;
+          }
+  }
+  server {
+  	listen		80;
+      server_name  	api.reception.cxfwlm.org.cn;
+  
+      location / {
+           proxy_pass 	http://cxfwlm_recep:8080/;
+      }
+  }
+  server {
+          listen          80;
+      server_name         api.backend.cxfwlm.org.cn;
+  
+      location / {
+           proxy_pass     http://cxfwlm_back:8081/;
+      }
+  }
+  ```
+
++ entrypoint.sh
+
+  ```sh
+  #!/bin/sh
+  # 替换nginx配置文件中的域名
+  sed "s/cxfwlm.org.cn/$BASE_URL/g" /opt/cxfwlm/cxfwlm.conf > /opt/cxfwlm/cxfwlm1.conf 
+  # 移动到nginx配置文件目录
+  mv /opt/cxfwlm/cxfwlm1.conf /etc/nginx/conf.d/cxfwlm.conf
+  # 删除nginx临时配置文件
+  rm -rf /opt/cxfwlm/cxfwlm1.conf
+  # 启动nginx，这里必须指定`daemon off；`，否则执行完当前脚本容器就退出了
+  nginx -g 'daemon off;'
+  ```
+
++ Dockerfile
+
+  ```dockerfile
+  FROM nginx
+  COPY cxfwlm /opt/cxfwlm
+  COPY cxfwlm.conf /opt/cxfwlm/
+  COPY entrypoint.sh / 
+  ENV BASE_URL cxfwlm.org.cn
+  ENTRYPOINT ["sh","-c","/entrypoint.sh"]
+  ```
+
++ 启动命令
+
+  > 启动时必须连接到`storage`、`cxfwlm_recep`、`cxfwlm_back`
+
+  ```shell
+  $ docker run -d --link storage --link cxfwlm_recep --link cxfwlm_back --name cxfwlm_front -p 80:80 cxfwlm_front
   ```
 
 #### 基于现有容器
@@ -843,6 +1081,12 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
     在容器外使用`docker stop CONTAINER_ID`来结束容器
 
+  + `ctrl+p+q`
+
+    退出容器，但不结束容器
+
+    注意不是`command+p+q`
+
 ## 命令
 
 > [官方文档](https://docs.docker.com/engine/reference/commandline/cli/)中有所有命令的使用说明
@@ -865,22 +1109,23 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
   + OPTIONS
 
-    |        参数        |                             说明                             |                例                |
-    | :----------------: | :----------------------------------------------------------: | :------------------------------: |
-    | --interactive , -i | 与容器内部建立1个交互式连接，没有该参数，用户输入无法传入容器<br />可执行`docker container run -i ubuntu bash`进行测试 |                                  |
-    |     --tty , -t     | 连接到容器里的终端<br />可执行`docker container run -t ubuntu bash`进行测试 |                                  |
-    |   --publish , -p   |                  将本机端口转发到容器的端口                  |           -p 8080:3000           |
-    | --publish-all , -P |     在本机中随机选几个端口映射到容器的所有对外开放的端口     |                                  |
-    |        --rm        |                  容器退出后自动删除容器文件                  |                                  |
-    |   --detach , -d    |                    以守护进程方式创建容器                    |                                  |
-    |     --network      |                  指定[网络模式](#网络模式)                   |                                  |
-    |   --volume , -v    |    将主机中目录映射到容器，相当于`Dockerfile`中的`VOLUME`    |  --volume "$PWD/":/var/www/html  |
-    |     --env , -e     |                         指定环境变量                         | --env MYSQL_ROOT_PASSWORD=123456 |
-    |       --name       |                        为容器指定名称                        |                                  |
-    |       --link       |              连接 到容器，参见[--link](#--link)              |                                  |
-    |   --workdir , -w   |                         指定工作目录                         |                                  |
-    |                    |                                                              |                                  |
-    |                    |                                                              |                                  |
+    |        参数        |                             说明                             | 例                                                           |
+    | :----------------: | :----------------------------------------------------------: | :----------------------------------------------------------- |
+    | --interactive , -i | 与容器内部建立1个交互式连接，没有该参数，用户输入无法传入容器<br />可执行`docker container run -i ubuntu bash`进行测试 |                                                              |
+    |     --tty , -t     | 连接到容器里的终端<br />可执行`docker container run -t ubuntu bash`进行测试 |                                                              |
+    |   --publish , -p   |                  将本机端口转发到容器的端口                  | -p 8080:3000                                                 |
+    | --publish-all , -P |     在本机中随机选几个端口映射到容器的所有对外开放的端口     |                                                              |
+    |        --rm        |                  容器退出后自动删除容器文件                  |                                                              |
+    |   --detach , -d    |                    以守护进程方式创建容器                    |                                                              |
+    |     --network      |                  指定[网络模式](#网络模式)                   |                                                              |
+    |   --volume , -v    |                    将容器中目录映射到主机                    | -v "$PWD/":/var/www/html<br />将容器中`/var/www/html`目录挂载到本机当前目录下<br />-v /var/www/html<br />将容器中`/var/www/html`目录挂在到本机的1个自动生成的目录下 |
+    |     --env , -e     |   指定环境变量；可设置的环境变量可以参考`docker`仓库的文档   | --env MYSQL_ROOT_PASSWORD=123456                             |
+    |       --name       |                        为容器指定名称                        |                                                              |
+    |       --link       |              连接 到容器，参见[--link](#--link)              |                                                              |
+    |   --workdir , -w   |                         指定工作目录                         |                                                              |
+    |    --privileged    | 给容器内的用户赋予宿主机中的root权限；参见[[docker]privileged参数](https://blog.csdn.net/halcyonbaby/article/details/43499409) | --privileged=true                                            |
+    |     --user，-u     | 指定使用哪个用户运行；用户为容器内用户；参数为用户id或用户名 |                                                              |
+    |   --detach-keys    |             指定退出容器的快捷键，默认`ctrl+p+q              | --detach-keys H                                              |
 
 + 例
 
@@ -938,7 +1183,77 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
 + 功能
 
-  以bash交互方式连接容器
+  以bash交互方式再次连接到正在运行的容器
+
+### docker inspect
+
++ 语法
+
+  ```shell
+  docker inspect [OPTIONS] NAME|ID [NAME|ID...]
+  ```
+
++ 功能
+
+  详细的展示出容器的具体信息
+
++ 参数
+
+  + NAME | ID
+
+    要展示的容器的名称或id，可以同时查看多个容器
+
+### docker top
+
++ 语法
+
+  ```shell
+  docker top CONTAINER [ps OPTIONS]
+  ```
+
++ 功能
+
+  显示容器内正在运行的进程
+
++ 例
+
+  ```shell
+  $ docker top demo | grep java
+  ```
+
+### docker exec
+
++ 语法
+
+  ```shell
+  docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
+  ```
+
++ 功能
+
+  在正在运行的容器中启动新的进程
+
++ 参数
+
+  OPTIONS
+
+  + -d，--detach
+  + --detach-keys
+  + --env , -e
+  + --interactive , -i
+  + --privileged
+  + --tty , -t
+  + --user , -u
+
+  以上参数用法均与[docker run ](#docker run )中该参数相同
+
+### docker commit
+
+参见[基于现有容器](#基于现有容器) 
+
+### docker build
+
+参见[基于基础镜像](#基于基础镜像) 
 
 ## 网络
 
@@ -995,7 +1310,7 @@ $ docker run -d --link wordpressdb:mysql wp
 
 + 我的理解
 
-  配置本容器的域名解析，将`wordpressdb`、`mysql`这两个域名全部解析为`wordpress`容器的`ip`
+  配置本容器的域名解析，将`wordpressdb`、`mysql`这两个域名全部解析为`wordpressdb`容器的`ip`
 
   即使不使用该选项，容器之间也是可以`ping`通的
 
@@ -1027,28 +1342,79 @@ $ docker run -d --link wordpressdb:mysql wp
 
 ### 使用
 
-+ 创建应用执行根目录(如：wordpress)，在该目录下创建`docker-compose.yml`文件，并进行配置
++ 以`创新服务联盟`项目为例，目录结构如下
 
-  这里以配置`wordpress`为例
+  ```
+  cxfwlm/ 
+  		|---- docker-compose.yml
+  		|---- cxfwlm_mysql/ 
+  							|---- Dockerfile
+  							|---- map_v2.sql
+  		|----- jar/
+  							|---- cxfwlm_back/
+  												|---- Dockerfile
+  												|---- backend-1.0.0-REALEASE.jar
+  						  |---- cxfwlm_recep/
+  												|---- Dockerfile
+  												|---- reception-1.0.0-REALEASE.jar
+      |---- cxfwlm_front/
+      					|---- cxfwlm/
+      										|---- backend/
+      															|---- dist/										# 前端代码
+      										|---- reception/
+      															|---- dist/										# 前端代码
+      					|---- cxfwlm.conf
+      					|---- entrypoint.sh
+      					|---- Dockerfile
+  ```
+
+  上面这些文件除了`docker-compose.yml`，其他均与[例子](#例子)中完全相同
+
++ docker-compose.yml
 
   ```yaml
-  # 每个顶级标签表示1个容器
-  mysql:										# 容器名称
-      image: mysql:5.7						# 运行的image文件，相当于：docker run mysql:5.7
-      environment:							# 配置环境变量，相当于：docker run -e
-       - MYSQL_ROOT_PASSWORD=123456
-       - MYSQL_DATABASE=wordpress
-  web:
-      image: wordpress
-      links:									# 相当于：docker run --link
-       - mysql
-      environment:
-       - WORDPRESS_DB_PASSWORD=123456
-      ports:									# 相当于 docker run -p
-       - "127.0.0.3:8080:80"
-      working_dir: /var/www/html				# 相当于：docker run -w
-      volumes:								# 相当于：docker run -v
-       - wordpress:/var/www/html
+  version: "3"
+  services:
+          tracker:
+                  image: delron/fastdfs
+                  volumes:
+                          - /home/shuyan/tmp/docker-compose/cxfwlm/fdfs/tracker:/var/fdfs
+                  command: ["tracker"]
+          storage:
+                  image: delron/fastdfs
+                  volumes:
+                          - /home/shuyan/tmp/docker-compose/cxfwlm/fdfs/storage:/var/fdfs
+                  command: ["storage"]
+                  external_links:
+                          - tracker
+                  environment:
+                          - TRACKER_SERVER=tracker:22122
+          mysql:
+                  build: ./cxfwlm_mysql
+                  volumes:
+                          - /home/shuyan/tmp/docker-compose/cxfwlm/cxfwlm_mysql/data:/var/lib/mysql
+                  container_name: cxfwlm_mysql 
+          cxfwlm_back:
+                  build: ./jar/cxfwlm_back
+                  external_links:
+                          - cxfwlm_mysql:mysql
+                          - tracker
+                  container_name: cxfwlm_back
+          cxfwlm_recep:
+                  build: ./jar/cxfwlm_recep
+                  external_links:
+                          - cxfwlm_mysql:mysql
+                          - tracker
+                  container_name: cxfwlm_recep
+          cxfwlm_front:
+                  build: ./cxfwlm_front
+                  external_links:
+                          - storage
+                          - cxfwlm_back
+                          - cxfwlm_recep
+                  container_name: cxfwlm_front
+                  ports:
+                          - "80:80"
   ```
 
 + 启动这个应用
@@ -1091,7 +1457,6 @@ $ docker run -d --link wordpressdb:mysql wp
     | :---------------: | :-------------------------------------------: | :--: |
     |     -f,--file     | 指定compose配置文件，默认`docker-compose.yml` |      |
     | -p,--project-name |         指定工程名称，默认当前目录名          |      |
-    |                   |                                               |      |
 
   + command
 
@@ -1107,9 +1472,6 @@ $ docker run -d --link wordpressdb:mysql wp
     |   rm    |              删除这些容器              |      |
     | restart |              重启这些容器              |      |
     |  kill   |              杀死这些容器              |      |
-    |         |                                        |      |
-    |         |                                        |      |
-    |         |                                        |      |
 
 ## docker-machine
 
@@ -1131,7 +1493,7 @@ $ docker run -d --link wordpressdb:mysql wp
 
   ```json
   {
-    "registry-mirrors": ["https://registry.docker-cn.com"]
+    "registry-mirrors": ["http://141e5461.m.daocloud.io"]
   }
   ```
 
