@@ -1334,11 +1334,10 @@ $ docker run -d --link wordpressdb:mysql wp
   参见[官方文档](https://docs.docker.com/compose/install/#install-compose) 
 
   ```shell
-  $ sudo curl -L https://github.com/docker/compose/releases/download/1.24.0-rc1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
-  $ sudo chmod +x /usr/local/bin/docker-compose
+  $ sudo pip3 install -U docker-compose
   ```
-
-  注意版本
+  
+注意版本
 
 ### 使用
 
