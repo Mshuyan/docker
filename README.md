@@ -164,6 +164,32 @@ $ sudo usermod -aG docker $USER
 
   参见[CentOS6 完全离线安装Docker](https://www.jianshu.com/p/beea3ae215e6) 
 
+
+
+#### WSL
+
++ 参见如下资料：
+  + [Docker Desktop WSL 2 backend](https://docs.docker.com/docker-for-windows/wsl/) 
+  + [update to wsl 2](https://docs.microsoft.com/en-us/windows/wsl/install-win10) 
+
++ 踩坑
+
+  + 登陆失败
+
+    + 报错
+
+      ```
+      Error saving credentials: error storing credentials - err: exec: "docker-credential-desktop.exe": executable file not found in $PATH, out: ``
+      ```
+
+    + 解决
+
+      ```
+      export PATH=$PATH:/mnt/c/Program\ Files/Docker/Docker/resources/bin
+      ```
+
+      
+
 ### 测试
 
 接下来执行如下命令测试是否安装成功
@@ -1337,6 +1363,7 @@ $ docker run -d --link wordpressdb:mysql wp
   $ sudo pip3 install -U docker-compose
   ```
   
+
 注意版本
 
 ### 使用
