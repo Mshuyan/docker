@@ -164,7 +164,9 @@ $ sudo usermod -aG docker $USER
 
   参见[CentOS6 完全离线安装Docker](https://www.jianshu.com/p/beea3ae215e6) 
 
-
+```
+yum install docker-ce-20.10.6 docker-ce-cli-20.10.6 containerd.io
+```
 
 #### WSL
 
@@ -1280,6 +1282,14 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 ### docker build
 
 参见[基于基础镜像](#基于基础镜像) 
+
+### docker update
+
+更新容器配置
+
+```
+docker update --restart=always <CONTAINER ID>
+```
 
 ## 网络
 
