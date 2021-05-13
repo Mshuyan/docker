@@ -544,7 +544,7 @@ imageNamet由3部分组成：
 
   + 功能
 
-    将容器内指定的端口暴露出来
+    声明该容器使用了哪些端口，仅用于声明
 
 + CMD
 
@@ -1352,6 +1352,8 @@ $ docker run -d --link wordpressdb:mysql wp
 
   该选项原理是在`/etc/hosts`文件中进行了配置
 
+
+
 ## docker-compose
 
 ### 介绍
@@ -1372,7 +1374,6 @@ $ docker run -d --link wordpressdb:mysql wp
   ```shell
   $ sudo pip3 install -U docker-compose
   ```
-  
 
 注意版本
 
@@ -1508,6 +1509,11 @@ $ docker run -d --link wordpressdb:mysql wp
     |   rm    |              删除这些容器              |      |
     | restart |              重启这些容器              |      |
     |  kill   |              杀死这些容器              |      |
+
+### 配置
+
++ `hostname`：将本容器ip以指定名称加入`hosts`文件
++ 
 
 ## docker-machine
 
