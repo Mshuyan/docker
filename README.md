@@ -409,7 +409,7 @@ imageNamet由3部分组成：
 
   + 功能
 
-    功能与`COPY`一致，只是`ADD`可以复制网络文件
+    功能与`COPY`一致，只是`ADD`可以复制网络文件，如果是压缩文件会自动解压
 
   + 例
 
@@ -554,7 +554,7 @@ imageNamet由3部分组成：
     CMD ["executable","param1","param2"]		# 1 exec格式：执行命令各部分使用数组表示
     CMD ["param1","param2"]									# 2 exec格式：仅指定参数，用于与 ENTRYPOINT 配合使用
     CMD command param1 param2								# 3 shell方式执行，最终执行命令为
-    																				#		/bin/sh -c command param1 param2
+    														#		/bin/sh -c command param1 param2
     ```
 
   + 功能
@@ -1041,6 +1041,12 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
   $ docker load -i fdfs.image
   ```
 
+### 删除所有镜像
+
+```
+docker rmi `docker images -q`
+```
+
 ## 容器
 
 ### 容器创建、启动、停止
@@ -1137,23 +1143,25 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 
   + OPTIONS
 
-    |        参数        |                             说明                             | 例                                                           |
-    | :----------------: | :----------------------------------------------------------: | :----------------------------------------------------------- |
+    |        参数        | 说明                                                         | 例                                                           |
+    | :----------------: | :----------------------------------------------------------- | :----------------------------------------------------------- |
     | --interactive , -i | 与容器内部建立1个交互式连接，没有该参数，用户输入无法传入容器<br />可执行`docker container run -i ubuntu bash`进行测试 |                                                              |
     |     --tty , -t     | 连接到容器里的终端<br />可执行`docker container run -t ubuntu bash`进行测试 |                                                              |
-    |   --publish , -p   |                  将本机端口转发到容器的端口                  | -p 8080:3000                                                 |
-    | --publish-all , -P |     在本机中随机选几个端口映射到容器的所有对外开放的端口     |                                                              |
-    |        --rm        |                  容器退出后自动删除容器文件                  |                                                              |
-    |   --detach , -d    |                    以守护进程方式创建容器                    |                                                              |
-    |     --network      |                  指定[网络模式](#网络模式)                   |                                                              |
-    |   --volume , -v    |                    将容器中目录映射到主机                    | -v "$PWD/":/var/www/html<br />将容器中`/var/www/html`目录挂载到本机当前目录下<br />-v /var/www/html<br />将容器中`/var/www/html`目录挂在到本机的1个自动生成的目录下 |
-    |     --env , -e     |   指定环境变量；可设置的环境变量可以参考`docker`仓库的文档   | --env MYSQL_ROOT_PASSWORD=123456                             |
-    |       --name       |                        为容器指定名称                        |                                                              |
-    |       --link       |              连接 到容器，参见[--link](#--link)              |                                                              |
-    |   --workdir , -w   |                         指定工作目录                         |                                                              |
+    |   --publish , -p   | 将本机端口转发到容器的端口                                   | -p 8080:3000                                                 |
+    | --publish-all , -P | 在本机中随机选几个端口映射到容器的所有对外开放的端口         |                                                              |
+    |        --rm        | 容器退出后自动删除容器文件                                   |                                                              |
+    |   --detach , -d    | 以守护进程方式创建容器                                       |                                                              |
+    |     --network      | 指定[网络模式](#网络模式)                                    |                                                              |
+    |   --volume , -v    | 将容器中目录映射到主机                                       | -v "$PWD/":/var/www/html<br />将容器中`/var/www/html`目录挂载到本机当前目录下<br />-v /var/www/html<br />将容器中`/var/www/html`目录挂在到本机的1个自动生成的目录下 |
+    |     --env , -e     | 指定环境变量；可设置的环境变量可以参考`docker`仓库的文档     | --env MYSQL_ROOT_PASSWORD=123456                             |
+    |       --name       | 为容器指定名称                                               |                                                              |
+    |       --link       | 连接 到容器，参见[--link](#--link)                           |                                                              |
+    |   --workdir , -w   | 指定工作目录                                                 |                                                              |
     |    --privileged    | 给容器内的用户赋予宿主机中的root权限；参见[[docker]privileged参数](https://blog.csdn.net/halcyonbaby/article/details/43499409) | --privileged=true                                            |
     |     --user，-u     | 指定使用哪个用户运行；用户为容器内用户；参数为用户id或用户名 |                                                              |
-    |   --detach-keys    |             指定退出容器的快捷键，默认`ctrl+p+q              | --detach-keys H                                              |
+    |   --detach-keys    | 指定退出容器的快捷键，默认`ctrl+p+q                          | --detach-keys H                                              |
+    |   -h，--hostname   | 指定主机名称，默认一串数字（没啥用）<br>  docker会将主机名称写入`/etc/hosts`，不指定该选项时，将数字写入，指定后将指定名称写入 |                                                              |
+    |     --add-host     | 将指定ip和名称写入hosts                                      |                                                              |
 
 + 例
 
@@ -1291,6 +1299,42 @@ docker commit -m "test container to image" -a "shuyan" 810d15d92d77 imagetest
 docker update --restart=always <CONTAINER ID>
 ```
 
+### 通用启动参数
+
+```
+-m 2g
+--memory-swap -1
+-v /etc/localtime:/etc/localtime
+-e TZ=Asia/Shanghai
+--log-opt max-size=10m
+--privileged
+--restart always
+```
+
+## 全局选项配置
+
+docker全局选项配置可以配置在`/etc/docker/daemon.json`，如：镜像加速、容器日志大小限制等等
+
+```json
+{
+	"registry-mirrors": ["https://7tmu2dsd.mirror.aliyuncs.com"],
+	"log-opts": {"max-size": "100m"}
+}
+```
+
++ 修改后需要执行如下命令使生效
+
+  ```sh
+  systemctl daemon-reload
+  systemctl restart docker
+  ```
+
++ 不重启加载配置
+
+  ```sh
+  kill -SIGHUP ${dockerd进程的pid}
+  ```
+
 ## 网络
 
 ### 网络模式
@@ -1351,6 +1395,8 @@ $ docker run -d --link wordpressdb:mysql wp
   即使不使用该选项，容器之间也是可以`ping`通的
 
   该选项原理是在`/etc/hosts`文件中进行了配置
+  
++ `docker compose`中该选项已过时，同1个`compose`中，默认通过容器名就可以互通
 
 
 
@@ -1476,7 +1522,10 @@ $ docker run -d --link wordpressdb:mysql wp
 
 ### 配置文件
 
-
++ links
+  + 已被废弃，同1个`compose`中，容器之间默认可以通过容器名互通
++ extern-links
+  + 与当前`compose`之外的容器互通时使用
 
 ### 命令
 
@@ -1509,11 +1558,6 @@ $ docker run -d --link wordpressdb:mysql wp
     |   rm    |              删除这些容器              |      |
     | restart |              重启这些容器              |      |
     |  kill   |              杀死这些容器              |      |
-
-### 配置
-
-+ `hostname`：将本容器ip以指定名称加入`hosts`文件
-+ 
 
 ## docker-machine
 

@@ -1,0 +1,51 @@
+version: '3'
+services:
+    es:
+        image: elasticsearch:7.12.1
+        container_name: es
+        ports:
+            - 9200:9200
+            - 9300:9300
+        environment:
+            - discovery.type=single-node
+        volumes:
+            - ./es/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+            - ./es/data:/usr/share/elasticsearch/data
+            - ./es/plugins:/usr/share/elasticsearch/plugins
+            - /etc/localtime:/etc/localtime
+        mem_limit: 2g
+        memswap_limit: -1
+        restart: always
+        privileged: true
+        logging:
+            options:
+                max-size: "10m"
+    logstash:
+        image: logstash:7.12.1
+        container_name: logstash
+        volumes:
+            - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+            - ./logstash/pipeline/:/usr/share/logstash/pipeline/
+            - /etc/localtime:/etc/localtime
+        mem_limit: 2g
+        memswap_limit: -1
+        restart: always
+        privileged: true
+        logging:
+            options:
+                max-size: "10m"
+    kibana:
+        image: kibana:7.12.1
+        container_name: kibana
+        ports:
+            - 5601:5601
+        volumes:
+            - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+            - /etc/localtime:/etc/localtime
+        mem_limit: 2g
+        memswap_limit: -1
+        restart: always
+        privileged: true
+        logging:
+            options:
+                max-size: "10m"

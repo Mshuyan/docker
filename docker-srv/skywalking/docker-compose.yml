@@ -1,0 +1,46 @@
+version: "3"
+services:
+  nacos:
+    container_name: skywalking-oap
+    image: apache/skywalking-oap-server:8.5.0-es7
+    ports:
+      - 11800:11800
+      - 12800:12800
+    environment:
+      SW_CLUSTER: nacos
+      SW_CLUSTER_NACOS_HOST_PORT: 192.168.10.54:8848
+      SW_CLUSTER_NACOS_NAMESPACE: skywalking
+      SW_CONFIGURATION: nacos
+      SW_CONFIG_NACOS_SERVER_ADDR: 192.168.10.54
+      SW_CONFIG_NACOS_SERVER_NAMESPACE: skywalking
+      SW_STORAGE: elasticsearch7
+      SW_STORAGE_ES_CLUSTER_NODES: 192.168.10.36:9200
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+    volumes:
+        - /etc/localtime:/etc/localtime
+    mem_limit: 2g
+    memswap_limit: -1
+    restart: always
+    privileged: true
+    logging:
+        options:
+            max-size: "10m"
+  ui:
+    image: apache/skywalking-ui:8.5.0
+    container_name: skywalking-ui
+    ports:
+      - 8080:8080
+    environment:
+      SW_OAP_ADDRESS: skywalking-oap:12800
+    volumes:
+        - /etc/localtime:/etc/localtime
+    mem_limit: 1g
+    memswap_limit: -1
+    restart: always
+    privileged: true
+    logging:
+        options:
+            max-size: "10m"
+
+

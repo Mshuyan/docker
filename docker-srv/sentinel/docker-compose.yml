@@ -1,0 +1,19 @@
+version: "3"
+services:
+  sentinel:
+    hostname: sentinel
+    container_name: sentinel
+    image: bladex/sentinel-dashboard:1.8.0
+    ports:
+        - "8858:8858"
+    volumes:
+        - /etc/localtime:/etc/localtime
+    mem_limit: 2g
+    memswap_limit: -1
+    restart: always
+    privileged: true
+    logging:
+        options:
+            max-size: "10m"
+
+

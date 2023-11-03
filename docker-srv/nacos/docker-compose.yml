@@ -1,0 +1,22 @@
+version: "3"
+services:
+  nacos:
+    hostname: nacos
+    container_name: nacos
+    image: nacos/nacos-server:1.4.1
+    ports:
+        - "8848:8848"
+        - "9555:9555"
+    env_file:
+        - ./nacos.env
+    volumes:
+      - ./logs/nacos:/home/nacos/logs
+      - ./custom.properties:/home/nacos/init.d/custom.properties
+      - /etc/localtime:/etc/localtime
+    mem_limit: 2g
+    memswap_limit: -1
+    restart: always
+    privileged: true
+    logging:
+      options:
+        max-size: "10m"

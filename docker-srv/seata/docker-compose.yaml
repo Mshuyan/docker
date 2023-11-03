@@ -1,0 +1,23 @@
+version: "3"
+services:
+  nacos:
+    hostname: seata
+    container_name: seata
+    image: seataio/seata-server:1.3.0
+    volumes:
+      - ./config/registry.conf:/seata-server/resources/registry.conf
+      - ./config/logback.xml:/seata-server/resources/logback.xml
+      - ./logs:/root/logs/seata
+      - /etc/localtime:/etc/localtime
+    ports:
+      - "8091:8091"
+    environment:
+      - SEATA_IP=192.168.10.54
+    mem_limit: 2g
+    memswap_limit: -1
+    restart: always
+    privileged: true
+    logging:
+      options:
+        max-size: "10m"
+
